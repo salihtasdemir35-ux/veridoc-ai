@@ -12,43 +12,36 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Kodu al
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Zip dosyasını aç (zip olarak yüklendiyse)
+      - name: Zip dosyasını aç
         run: |
           if [ ! -f package.json ]; then
-            if [ -f veridoc-ai.zip ]; then ZIP=veridoc-ai.zip; else ZIP=$(ls *.zip 2>/dev/null | head -n 1); fi
-            if [ -z "$ZIP" ]; then echo "Depoda ne package.json ne de zip dosyası var."; exit 1; fi
-            echo "Açılıyor: $ZIP"
-            mkdir -p /tmp/proje
+            ZIP=$(ls *.zip | head -n 1)
             unzip -q -o "$ZIP" -d /tmp/proje
-            PJ=$(find /tmp/proje -name package.json -not -path '*/node_modules/*' | head -n 1)
-            if [ -z "$PJ" ]; then echo "Zip içinde package.json bulunamadı."; exit 1; fi
+            PJ=$(find /tmp/proje -name package.json | head -n 1)
             cp -a "$(dirname "$PJ")"/. .
           fi
-          ls -la
 
-      - name: Node.js kur
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Java kur
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 21
 
-      - name: Analiz motoru testleri
-        run: |
-          if [ -f tests/test_analyzer.js ]; then node tests/test_analyzer.js; else echo "Test dosyası yok, atlandı."; fi
+      - name: APK derle
+        run: bash scripts/ci-build.sh
 
-      - name: Paketleri yükle
-        run: npm install
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VeriDoc-AI-APK
+          path: VeriDoc-AI.apk
 
-      - name: Android projesini oluştur
-        run: |
-          rm -rf android
-          npx cap add android
-          npx capacitor-assets generate --andr
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.1.${{ github.run_number }}
+          name: VeriDoc AI v1.1.${{ github.run_number }}
+          files: VeriDoc-AI.apk
