@@ -1,0 +1,62 @@
+name: APK oluştur
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Kodu al
+        uses: actions/checkout@v4
+
+      - name: Node.js kur
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Java kur
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Analiz motoru testleri
+        run: node tests/test_analyzer.js
+
+      - name: Paketleri yükle
+        run: npm install
+
+      - name: Android projesini oluştur
+        run: |
+          rm -rf android
+          npx cap add android
+          npx capacitor-assets generate --android
+          node scripts/patch-android.js
+          npx cap sync android
+
+      - name: APK derle
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+          cp app/build/outputs/apk/debug/app-debug.apk ../VeriDoc-AI.apk
+
+      - name: APK'yı Actions çıktısı olarak yükle
+        uses: actions/upload-artifact@v4
+        with:
+          name: VeriDoc-AI-APK
+          path: VeriDoc-AI.apk
+
+      - name: APK'yı Releases sayfasına koy
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.1.${{ github.run_number }}
+          name: VeriDoc AI v1.1.${{ github.run_number }}
+          body: Telefona indirip kurmak için VeriDoc-AI.apk dosyasına dokunun.
+          files: VeriDoc-AI.apk
