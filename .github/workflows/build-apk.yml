@@ -15,6 +15,20 @@ jobs:
       - name: Kodu al
         uses: actions/checkout@v4
 
+      - name: Zip dosyasını aç (zip olarak yüklendiyse)
+        run: |
+          if [ ! -f package.json ]; then
+            if [ -f veridoc-ai.zip ]; then ZIP=veridoc-ai.zip; else ZIP=$(ls *.zip 2>/dev/null | head -n 1); fi
+            if [ -z "$ZIP" ]; then echo "Depoda ne package.json ne de zip dosyası var."; exit 1; fi
+            echo "Açılıyor: $ZIP"
+            mkdir -p /tmp/proje
+            unzip -q -o "$ZIP" -d /tmp/proje
+            PJ=$(find /tmp/proje -name package.json -not -path '*/node_modules/*' | head -n 1)
+            if [ -z "$PJ" ]; then echo "Zip içinde package.json bulunamadı."; exit 1; fi
+            cp -a "$(dirname "$PJ")"/. .
+          fi
+          ls -la
+
       - name: Node.js kur
         uses: actions/setup-node@v4
         with:
@@ -26,6 +40,9 @@ jobs:
           distribution: temurin
           java-version: 21
 
+      - name: Analiz motoru testleri
+        run: |
+          if [ -f tests/test_analyzer.js ]; then node tests/test_analyzer.js; else echo "Test dosyası yok, atlandı."; fi
 
       - name: Paketleri yükle
         run: npm install
@@ -34,27 +51,4 @@ jobs:
         run: |
           rm -rf android
           npx cap add android
-          npx capacitor-assets generate --android
-          node scripts/patch-android.js
-          npx cap sync android
-
-      - name: APK derle
-        working-directory: android
-        run: |
-          chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
-          cp app/build/outputs/apk/debug/app-debug.apk ../VeriDoc-AI.apk
-
-      - name: APK'yı Actions çıktısı olarak yükle
-        uses: actions/upload-artifact@v4
-        with:
-          name: VeriDoc-AI-APK
-          path: VeriDoc-AI.apk
-
-      - name: APK'yı Releases sayfasına koy
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v1.1.${{ github.run_number }}
-          name: VeriDoc AI v1.1.${{ github.run_number }}
-          body: Telefona indirip kurmak için VeriDoc-AI.apk dosyasına dokunun.
-          files: VeriDoc-AI.apk
+          npx capacitor-assets generate --andr
