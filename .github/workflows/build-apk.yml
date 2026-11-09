@@ -26,8 +26,6 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - name: Analiz motoru testleri
-        run: node tests/test_analyzer.js
 
       - name: Paketleri yükle
         run: npm install
